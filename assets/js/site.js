@@ -34,30 +34,53 @@
     window.matchMedia('(min-width: 961px)').addEventListener('change', event => { if (event.matches) closeMenu(); });
   }
 
-  const cards = [...document.querySelectorAll('[data-project]')];
-  const filters = [...document.querySelectorAll('[data-filter]')];
-  const search = document.querySelector('[data-project-search]');
-  const count = document.querySelector('[data-project-count]');
-  const empty = document.querySelector('[data-no-projects]');
-  let active = 'All';
-  function updateProjects() {
-    const query = (search?.value || '').trim().toLowerCase();
-    let shown = 0;
-    for (const card of cards) {
-      const matches = (active === 'All' || card.dataset.category === active) && card.dataset.search.includes(query);
-      card.hidden = !matches;
-      if (matches) shown++;
+  for (const collection of document.querySelectorAll('[data-collection]')) {
+    const items = [...collection.querySelectorAll('[data-collection-item]')];
+    const filters = [...collection.querySelectorAll('[data-collection-filter]')];
+    const search = collection.querySelector('[data-collection-search]');
+    const count = collection.querySelector('[data-collection-count]');
+    const empty = collection.querySelector('[data-collection-empty]');
+    const resetButton = collection.querySelector('[data-collection-reset]');
+    let active = 'All';
+
+    const updateCollection = () => {
+      const query = (search?.value || '').trim().toLowerCase();
+      let shown = 0;
+      for (const item of items) {
+        const category = item.dataset.category || '';
+        const haystack = item.dataset.search || '';
+        const matchesFilter = active === 'All' || category === active;
+        const matchesSearch = !query || haystack.includes(query);
+        item.hidden = !(matchesFilter && matchesSearch);
+        if (!item.hidden) shown += 1;
+      }
+      if (count) count.textContent = shown === items.length ? `${shown} projects` : `${shown} of ${items.length} projects`;
+      for (const group of collection.querySelectorAll('[data-project-group]')) {
+        group.hidden = ![...group.querySelectorAll('[data-collection-item]')].some(item => !item.hidden);
+      }
+      if (empty) empty.hidden = shown !== 0;
+    };
+
+    const resetCollection = () => {
+      active = 'All';
+      if (search) search.value = '';
+      for (const button of filters) {
+        button.setAttribute('aria-pressed', String(button.dataset.collectionFilter === 'All'));
+      }
+      updateCollection();
+    };
+
+    for (const button of filters) {
+      button.addEventListener('click', () => {
+        active = button.dataset.collectionFilter || 'All';
+        for (const item of filters) item.setAttribute('aria-pressed', String(item === button));
+        updateCollection();
+      });
     }
-    if (count) count.textContent = `${shown} of ${cards.length} projects`;
-    if (empty) empty.hidden = shown !== 0;
+    search?.addEventListener('input', updateCollection);
+    resetButton?.addEventListener('click', resetCollection);
+    if (items.length) updateCollection();
   }
-  for (const button of filters) button.addEventListener('click', () => {
-    active = button.dataset.filter;
-    for (const item of filters) item.setAttribute('aria-pressed', String(item === button));
-    updateProjects();
-  });
-  search?.addEventListener('input', updateProjects);
-  if (cards.length) updateProjects();
 
   for (const button of document.querySelectorAll('[data-copy-email]')) button.addEventListener('click', async () => {
     const email = button.dataset.copyEmail;
